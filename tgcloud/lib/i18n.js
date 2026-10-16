@@ -1,5 +1,32 @@
 const en = {
-  dpOriginalUnavailable: "No profile photo of at least 300×300 is available.",
+  lowResolution:
+    "Only a small preview was exposed. No media above 200px is available.",
+  ownerPanel: "Owner controls",
+  serviceStatus: "Service status",
+  storage: "Storage",
+  storageUnavailable:
+    "Storage is unavailable. Activity and saved settings cannot be read or changed. Public downloads are paused until storage recovers.",
+  globalSize: "Global file limit",
+  bulkSize: "Items per request",
+  profileFloor: "Profile photo: best available, above 500px",
+  storyAccess:
+    "Stories: public files only; login-gated stories are unavailable.",
+  sourcesControl: "Enabled platforms",
+  publicDownloads: "Public downloads",
+  requestInterval: "Time between actions",
+  retention: "Saved requests per user",
+  globalHistory: "Allow saved history",
+  purgeData: "Delete all bot data",
+  purgeWarning:
+    "Delete every user, setting, session and saved download? Previously delivered Telegram messages remain.",
+  purgeConfirm: "Delete all data",
+  dataCleared: "All stored bot data was deleted.",
+  downloadsPaused: "Downloads are temporarily paused by the owner.",
+  sourceDisabled: "This platform is disabled by the owner.",
+  bulkLimit:
+    "This collection exceeds the owner’s item limit. Select fewer items.",
+  busy: "Your previous action is still running. Please wait.",
+  dpOriginalUnavailable: "No profile photo above 500px is publicly available.",
   storiesRestricted:
     "Instagram did not expose these stories without login. No story files were sent.",
   noStories: "No publicly accessible stories are available.",
@@ -118,7 +145,35 @@ const en = {
   noFormats: "No available file fits your size limit.",
 };
 const fa = {
-  dpOriginalUnavailable: "عکس پروفایل با اندازهٔ حداقل ۳۰۰×۳۰۰ در دسترس نیست.",
+  lowResolution:
+    "فقط پیش‌نمایش کوچک در دسترس است؛ مدیای بزرگ‌تر از ۲۰۰ پیکسل پیدا نشد.",
+  ownerPanel: "مدیریت ربات",
+  serviceStatus: "وضعیت سرویس",
+  storage: "ذخیره‌سازی",
+  storageUnavailable:
+    "ذخیره‌سازی در دسترس نیست؛ فعالیت‌ها و تنظیمات ذخیره‌شده فعلاً قابل مشاهده یا تغییر نیستند. دریافت عمومی تا رفع مشکل متوقف است.",
+  globalSize: "سقف حجم فایل",
+  bulkSize: "تعداد مدیا در هر درخواست",
+  profileFloor: "عکس پروفایل: بهترین نسخهٔ موجود، بزرگ‌تر از ۵۰۰ پیکسل",
+  storyAccess:
+    "استوری: فقط فایل‌های عمومی؛ استوری نیازمند ورود قابل دریافت نیست.",
+  sourcesControl: "شبکه‌های فعال",
+  publicDownloads: "دریافت برای کاربران",
+  requestInterval: "فاصلهٔ بین عملیات",
+  retention: "درخواست ذخیره‌شده برای هر کاربر",
+  globalHistory: "اجازهٔ ذخیرهٔ تاریخچه",
+  purgeData: "پاک‌کردن همهٔ داده‌ها",
+  purgeWarning:
+    "همهٔ کاربران، تنظیمات، نشست‌ها و دانلودهای ذخیره‌شده پاک شوند؟ پیام‌های قبلاً ارسال‌شده در تلگرام باقی می‌مانند.",
+  purgeConfirm: "همهٔ داده‌ها پاک شوند",
+  dataCleared: "همهٔ داده‌های ذخیره‌شدهٔ ربات پاک شدند.",
+  downloadsPaused: "دریافت موقتاً توسط مالک متوقف شده است.",
+  sourceDisabled: "این شبکه توسط مالک غیرفعال شده است.",
+  bulkLimit:
+    "تعداد مدیای این مجموعه از سقف تعیین‌شده بیشتر است؛ موارد کمتری انتخاب کنید.",
+  busy: "عملیات قبلی هنوز در حال انجام است؛ کمی صبر کنید.",
+  dpOriginalUnavailable:
+    "عکس پروفایل بزرگ‌تر از ۵۰۰ پیکسل در دسترسی عمومی پیدا نشد.",
   storiesRestricted:
     "اینستاگرام فایل این استوری‌ها را بدون ورود در اختیار ربات نگذاشت؛ استوری‌ای ارسال نشد.",
   noStories: "استوری عمومیِ قابل دریافت پیدا نشد.",
@@ -238,7 +293,32 @@ const fa = {
   noFormats: "فایلی در محدودهٔ حجم انتخاب‌شده پیدا نشد.",
 };
 const ar = {
-  dpOriginalUnavailable: "لا تتوفر صورة للحساب بحجم ٣٠٠×٣٠٠ على الأقل.",
+  lowResolution: "تتوفر معاينة صغيرة فقط؛ لا تتوفر وسائط أكبر من ٢٠٠ بكسل.",
+  ownerPanel: "إدارة البوت",
+  serviceStatus: "حالة الخدمة",
+  storage: "التخزين",
+  storageUnavailable:
+    "التخزين غير متاح. لا يمكن عرض النشاط والإعدادات المحفوظة أو تعديلها حالياً. التنزيل العام متوقف حتى عودة التخزين.",
+  globalSize: "الحد العام لحجم الملف",
+  bulkSize: "عناصر في كل طلب",
+  profileFloor: "صورة الحساب: أفضل نسخة متاحة، أكبر من ٥٠٠ بكسل",
+  storyAccess:
+    "القصص: الملفات العامة فقط؛ القصص التي تتطلب تسجيل الدخول غير متاحة.",
+  sourcesControl: "المنصات المفعلة",
+  publicDownloads: "التنزيل للمستخدمين",
+  requestInterval: "الفاصل بين العمليات",
+  retention: "الطلبات المحفوظة لكل مستخدم",
+  globalHistory: "السماح بحفظ السجل",
+  purgeData: "حذف جميع بيانات البوت",
+  purgeWarning:
+    "حذف جميع المستخدمين والإعدادات والجلسات والتنزيلات المحفوظة؟ تبقى الرسائل المرسلة سابقاً في تيليجرام.",
+  purgeConfirm: "حذف جميع البيانات",
+  dataCleared: "حُذفت جميع بيانات البوت المحفوظة.",
+  downloadsPaused: "أوقف المالك التنزيل مؤقتاً.",
+  sourceDisabled: "عطّل المالك هذه المنصة.",
+  bulkLimit: "تجاوزت المجموعة حد العناصر الذي حدده المالك. اختر عناصر أقل.",
+  busy: "العملية السابقة لا تزال قيد التنفيذ. يرجى الانتظار.",
+  dpOriginalUnavailable: "لا تتوفر صورة عامة للحساب أكبر من ٥٠٠ بكسل.",
   storiesRestricted:
     "لم يعرض إنستغرام ملفات هذه القصص دون تسجيل الدخول. لم تُرسل أي قصة.",
   noStories: "لا توجد قصص عامة متاحة للتنزيل.",

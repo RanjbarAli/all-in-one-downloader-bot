@@ -96,9 +96,9 @@ no database migration. Retention is 10,000 requests per user.
 
 Photos default to file/document delivery to avoid Telegram photo resizing. The
 best exposed public post source is used without rewriting signed CDN URLs.
-Instagram profile photos use the largest exposed candidate of at least 300×300;
-web HD sources such as 320×320 are accepted and the actual source resolution is
-shown. This does not label a resized web image as the original camera file.
+Instagram profile photos now require a source larger than 500 pixels in both
+dimensions. The largest available eligible source is selected. A 320×320 web
+source is rejected. Actual source resolution is shown. This does not label a resized web image as the original camera file.
 
 View Stories creates a new status message and sends media in subsequent messages;
 it never edits the profile message. It reads owner-matched story reels embedded
@@ -118,8 +118,10 @@ its captions disclose that history was not saved. This is not production ready.
 ## Publishing this repository
 
 This working tree includes source, documentation, branding and existing automated
-tests. The latest HTML/GraphQL and 300px changes were **not tested**, as requested.
-Earlier test counts in VERIFICATION.md apply only to the earlier revision.
+tests. The current automated suite passes **70 tests**. Actual cloud testing found
+only a 320×320 avatar for the sample account, so the strict >500px flow sends
+account information and an unavailable notice instead. No successful real >500px
+avatar or Instagram story download is claimed. See VERIFICATION.md.
 
 Credentials, CLI state, cookies, sessions, database files and local logs are
 excluded by `.gitignore`. Never force-add `.tgcloud/`. The numeric OWNER_ID in
@@ -152,3 +154,28 @@ remove messages or attachments already delivered to Telegram chats, nor does it
 claim deletion of service-side backups/logs that the SDK cannot manage. A failed
 database call means the reset did not complete. The latest reset attempt failed
 on the first DELETE with `Sqlite error`, so existing cloud data is **not cleared**.
+
+
+## Owner menu and operational controls
+
+The fixed numeric owner sees Settings, My downloads, Owner controls, User activity,
+Statistics, Service status, quality preferences and language access on `/menu`.
+Ordinary users do not see owner controls. The main menu avoids duplicate Settings
+and history buttons. Owner identity remains 792399936 in config.js.
+
+With healthy native storage, the owner can configure public download availability,
+5/10/25 MiB global limits, 5/10/25/50 items per request, 2/5/10/30-second action
+intervals, per-user retention, global history recording and per-platform switches.
+Personal reset preserves these operational controls. Every control and global
+reset rechecks the authenticated owner ID. The reset requires an explicit button
+confirmation and checks that the three application tables are empty.
+
+During the current native storage outage owner menu/status access remains available,
+but history and saved controls show an availability notice. Settings are not falsely
+reported as saved. Public users cannot bypass persisted rate controls via fallback.
+
+Best quality applies to every item in a collection, and selecting a new quality
+replaces the previous choice for that same item. Direct Instagram story links
+route through the story extractor. View Stories keeps the original profile message
+unchanged on both success and error. Stories at or below 200px or without known
+usable dimensions are not passed off as full-size content.

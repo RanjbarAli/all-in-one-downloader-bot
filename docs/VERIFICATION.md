@@ -169,3 +169,46 @@ the repository; only synthetic fixtures and non-secret configuration are include
 Follow-up deployed successfully as revision 7. No tests were run. The repository
 contains a CLI-only data-clear script; a second actual reset attempt again failed
 on the first DELETE with Sqlite error, so no clearing success is claimed.
+
+
+## Current tested release — owner controls and strict >500px profile
+
+The owner superseded the 300px requirement and explicitly requested testing.
+**70 automated tests pass, zero failures**. Mock coverage includes owner menu
+visibility during DB failure, direct Settings/history access, operational control
+choices and persistence, rejecting non-owner changes/reset, a full three-table
+purge, preserving operational policy during personal reset, best quality across
+all collection items, replacing quality selection within an item, HTML story
+owner matching, >200px story safeguards, and not editing the original profile
+message on either Story success or error. These tests do not establish real
+Instagram source availability or native database recovery.
+
+Real native integration results (2026-10-16):
+
+- A profile document was delivered to the configured owner before the latest
+  >500px requirement. It was 20,571 bytes. Parsing the actual JPEG bytes confirmed
+  **320×320**. This is earlier delivery evidence, not compliance with >500px.
+- The current profile flow rejects that 320px source, sends available account
+  information and reports that no >500px public image was found: **zero files**.
+- The Stories callback ran against real public sources and sent an access notice,
+  **zero story files**. Public story HTML had no media-resource fields; legacy
+  GraphQL returned 400; web/native reel feeds returned empty collections.
+  Native per-user story returned 403 and its web counterpart redirected.
+- Alternative native-avatar-info on the web redirected; legacy public profile
+  metadata request returned an empty 201 response. No authentication workaround
+  or external downloader was introduced.
+- Expanded owner menu and Service status were actually delivered via Bot API.
+- Constant SELECT, database inventory and schema inventory all still failed with
+  `Sqlite error`. A fresh safe migration attempt applied **0** changes and failed
+  all three creates. The actual data-clear command failed on its first DELETE:
+  existing cloud data remains **not cleared**. No logical reset success is claimed.
+
+The bot is not production-ready while storage is unavailable. Settings/history
+and public-user workflows remain blocked by that native service failure. The
+strict >500px requirement and actual Instagram story delivery remain unfulfilled
+for this account; the repository documents the failure rather than simulating it.
+
+Final deployment: revision 8, webhook synchronized, zero pending updates at
+inspection. The actual handlers/message /menu path ran successfully for owner
+792399936 and delivered the updated menu. No temporary endpoint was deployed.
+Formatting check passed; the final automated run passed all 70 tests.

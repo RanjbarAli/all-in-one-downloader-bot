@@ -162,8 +162,8 @@ a short retry message instead of silently failing before entering the handler.
 
 Profile lookup reads public page/embed data and its public application identifier,
 then attempts unauthenticated public profile metadata and native user info. No
-social tokens, cookies or login are used. The largest exposed avatar with known dimensions of at least 300×300 is
-eligible, including the observed 320px web HD source. Explicit native
+social tokens, cookies or login are used. The latest owner requirement accepts only avatars with known dimensions above
+500px in both directions; the observed 320px web HD source is ineligible. Explicit native
 `hd_profile_pic_url_info` / `hd_profile_pic_versions` remain preferred when larger.
 The source resolution is disclosed; no signed-URL transform removal is attempted.
 
@@ -195,3 +195,28 @@ The CLI-only data reset script deletes activity, locks and users in order. This
 SDK documents no atomic multi-table reset; a later failure can leave a partial
 reset. A failure on the first DELETE in the actual attempt removed no rows. No
 reset endpoint is deployed and credentials remain in ignored CLI machine state.
+
+
+## Operational controls and latest verified behavior
+
+`operations.js` validates a closed set of owner controls in users.prefs._controls.
+Each persisted invocation reads the policy before applying action cooldowns and
+media limits. Global size is the minimum of the user preference, owner cap and
+25 MiB application bound. Disabled sources and public pauses apply again when a
+pending selection is delivered. Bulk size is checked on both new and resumed
+collections. History creation respects both the user's privacy setting and the
+owner recording switch; retention uses a bound SQLite LIMIT.
+
+Owner configuration mutates only through owner-checked actions. It survives
+personal preference reset. A global reset deliberately deletes it with all other
+user state; the next invocation uses defaults. Deletion is not atomic across
+three stores; failed or concurrently repopulated resets are reported as incomplete.
+The owner menu and storage health diagnostic also work during the native DB outage;
+saved settings/history remain unavailable, rather than failing open for users.
+
+Native tests confirmed the earlier 320×320 JPEG's actual bytes/dimensions, sent the
+owner menu/status through Bot API, and verified that the latest >500px profile
+rule sends no small avatar. Original-profile message preservation, configurable
+controls, collection actions and owner isolation are covered by SDK-mock tests.
+Cloud SQLite execution and migrations still fail. Actual >500px avatar and story
+delivery remain unverified/unavailable for the tested public account.

@@ -72,7 +72,7 @@ export async function extract(url) {
     profile = data.profile;
     author = profile.username;
     title = profile.name || "Instagram";
-    formats = data.images.filter((f) => f.width >= 300 && f.height >= 300);
+    formats = data.images.filter((f) => f.width > 500 && f.height > 500);
     if (!formats.length)
       return {
         platform,

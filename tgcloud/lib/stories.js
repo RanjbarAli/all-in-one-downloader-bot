@@ -9,6 +9,8 @@ export function storyReel(roots, username, userId) {
     const owner = reel.user || reel.owner || {};
     const id = String(owner.id || owner.pk || reel.id || "");
     const name = String(owner.username || "").toLowerCase();
+    if (name && name !== username.toLowerCase()) return;
+    if (userId && (owner.id || owner.pk) && id !== String(userId)) return;
     if (
       keyed ||
       (userId && id === String(userId)) ||
@@ -33,13 +35,17 @@ export function storyFormats(item, id) {
   const video =
     item.media_type === 2 ||
     item.is_video === true ||
-    item.__typename === "GraphStoryVideo";
+    item.__typename === "GraphStoryVideo" ||
+    !!item.video_url ||
+    (Array.isArray(item.video_versions) && item.video_versions.length > 0) ||
+    (Array.isArray(item.video_resources) && item.video_resources.length > 0);
   if (video) {
     const versions = [
       ...(item.video_versions || []),
       ...(item.video_resources || []),
     ];
-    if (item.video_url) versions.push({ url: item.video_url });
+    if (item.video_url)
+      versions.push({ url: item.video_url, height: item.dimensions?.height });
     const seen = new Set();
     const formats = versions
       .filter((v) => {
@@ -56,7 +62,9 @@ export function storyFormats(item, id) {
         label: "Video",
       }));
     if (!formats.length) throw new MediaError("incompleteCollection");
-    return formats;
+    const large = formats.filter((f) => f.height > 200);
+    if (!large.length) throw new MediaError("lowResolution");
+    return large;
   }
   const candidates = [
     ...(item.image_versions2?.candidates || []),
@@ -75,6 +83,13 @@ export function storyFormats(item, id) {
   );
   const image = candidates.find((v) => v.url || v.src);
   if (!image) throw new MediaError("incompleteCollection");
+  if (
+    !(
+      Number(image.width || image.config_width) > 200 &&
+      Number(image.height || image.config_height) > 200
+    )
+  )
+    throw new MediaError("lowResolution");
   return [
     {
       url: decode(image.url || image.src),

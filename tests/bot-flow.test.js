@@ -461,7 +461,7 @@ test("a profile with no known adequate avatar resolution sends public info and S
   await processURL(u, "https://www.instagram.com/person/");
   assert.equal(cloudMock.media.length, 0);
   const p = cloudMock.calls.at(-1).params;
-  assert.ok(p.text.includes("at least 300×300"));
+  assert.ok(p.text.includes("above 500px"));
   assert.ok(
     p.reply_markup.inline_keyboard
       .flat()
@@ -543,4 +543,201 @@ test("View Stories callback sends every retrieved story automatically, including
   assert.equal(cloudMock.media[11].value, "https://a.cdninstagram.com/720.mp4");
   assert.equal(u.state.delivery.next, 12);
   assert.equal(cloudMock.records.activity[0].status, "sent");
+});
+
+test("owner menu exposes controls even during storage outage; other accounts never see them", async () => {
+  const u = setup("");
+  const { menu } = await import("../tgcloud/lib/bot.js");
+  u.volatile = true;
+  await menu(u);
+  const buttons = cloudMock.calls
+    .at(-1)
+    .params.reply_markup.inline_keyboard.flat();
+  assert.ok(buttons.some((b) => b.callback_data === "owner:home"));
+  assert.ok(buttons.some((b) => b.callback_data === "settings"));
+  assert.ok(buttons.some((b) => b.callback_data === "history:0"));
+  assert.ok(buttons.some((b) => b.callback_data === "owner:status"));
+  await dispatch(u, "owner:home");
+  assert.ok(
+    cloudMock.calls.at(-1).params.text.includes("Storage is unavailable"),
+  );
+  cloudMock.db.get = async () => {
+    throw Error("Sqlite error");
+  };
+  await dispatch(u, "owner:status");
+  assert.ok(!cloudMock.calls.at(-1).params.text.includes("Sqlite"));
+  const other = { ...u, id: 100 };
+  await menu(other);
+  assert.ok(
+    !cloudMock.calls
+      .at(-1)
+      .params.reply_markup.inline_keyboard.flat()
+      .some((b) => b.callback_data?.startsWith("owner:")),
+  );
+  await assert.rejects(dispatch(other, "owner:enabled"), { code: "denied" });
+});
+test("owner operational controls persist, enforce download policy, and survive personal reset", async () => {
+  const u = setup(post(1));
+  cloudMock.records.users.push({ id: u.id, prefs: "{}" });
+  await dispatch(u, "owner:home");
+  const buttons = cloudMock.calls
+    .at(-1)
+    .params.reply_markup.inline_keyboard.flat();
+  for (const action of [
+    "enabled",
+    "maxMiB",
+    "bulk",
+    "interval",
+    "retention",
+    "recording",
+  ]) {
+    assert.ok(buttons.some((b) => b.callback_data === "owner:" + action));
+    await dispatch(u, "owner:" + action);
+  }
+  assert.equal(u.prefs._controls.enabled, false);
+  assert.equal(u.prefs._controls.maxMiB, 10);
+  assert.equal(u.prefs._controls.bulk, 25);
+  assert.equal(u.prefs._controls.interval, 5);
+  assert.equal(u.prefs._controls.retention, 5000);
+  assert.equal(u.prefs._controls.recording, false);
+  assert.equal(
+    JSON.parse(cloudMock.records.users[0].prefs)._controls.maxMiB,
+    10,
+  );
+  await assert.rejects(processURL({ ...u, id: 100 }, source), {
+    code: "downloadsPaused",
+  });
+  await dispatch(u, "owner:source:Instagram");
+  await assert.rejects(processURL(u, source), { code: "sourceDisabled" });
+  await dispatch(u, "reset");
+  assert.equal(u.prefs._controls.disabled[0], "Instagram");
+});
+test("all owner source controls and ordinary settings buttons dispatch successfully", async () => {
+  const u = setup("");
+  await dispatch(u, "owner:sources");
+  const sourceButtons = cloudMock.calls
+    .at(-1)
+    .params.reply_markup.inline_keyboard.flat()
+    .filter((b) => b.callback_data.startsWith("owner:source:"));
+  assert.equal(sourceButtons.length, 13);
+  for (const b of sourceButtons) await dispatch(u, b.callback_data);
+  for (const action of [
+    "settings",
+    "advanced",
+    "language",
+    "lang:fa",
+    "lang:ar",
+    "lang:en",
+    "pref:quality",
+    "pref:limit",
+    "pref:mode",
+    "pref:metadata",
+    "pref:history",
+    "pref:photoOriginal",
+    "reset",
+    "help",
+    "privacy",
+    "platforms",
+    "platform:Instagram",
+    "menu",
+    "cancel",
+    "owner:status",
+    "owner:purge",
+  ])
+    await dispatch(u, action);
+  assert.ok(
+    cloudMock.calls
+      .at(-1)
+      .params.reply_markup.inline_keyboard.flat()
+      .some((b) => b.callback_data === "owner:purge_yes"),
+  );
+});
+test("confirmed owner purge removes all three stores; another user cannot request it", async () => {
+  const u = setup("");
+  cloudMock.records.users.push({ id: u.id }, { id: 1 });
+  cloudMock.records.activity.push({ id: 1, userId: 1, source: "test" });
+  cloudMock.records.locks.push({ id: 1, until: 0 });
+  await assert.rejects(dispatch({ ...u, id: 1 }, "owner:purge_yes"), {
+    code: "denied",
+  });
+  assert.equal(cloudMock.records.activity.length, 1);
+  await dispatch(u, "owner:purge_yes");
+  assert.equal(cloudMock.records.activity.length, 0);
+  assert.equal(cloudMock.records.users.length, 0);
+  assert.equal(cloudMock.records.locks.length, 0);
+});
+test("best-quality collection action sends one best format for every item", async () => {
+  const node = {
+    shortcode: "POST",
+    carousel_media: [
+      {
+        id: "v",
+        is_video: true,
+        video_versions: [
+          { url: "https://a.cdninstagram.com/720.mp4", height: 720 },
+          { url: "https://a.cdninstagram.com/360.mp4", height: 360 },
+        ],
+      },
+      { id: "p", display_url: "https://a.cdninstagram.com/p.jpg" },
+    ],
+  };
+  const u = setup('"shortcode_media":' + JSON.stringify(node));
+  await processURL(u, source);
+  await dispatch(u, "pick:" + u.state.time + ":0");
+  await dispatch(u, "pick:" + u.state.time + ":1");
+  assert.equal(u.state.selected.length, 1);
+  await dispatch(u, "get:" + u.state.time + ":best");
+  assert.deepEqual(
+    cloudMock.media.map((m) => m.value),
+    ["https://a.cdninstagram.com/720.mp4", "https://a.cdninstagram.com/p.jpg"],
+  );
+});
+test("View Stories success and failure never edit the original profile message", async () => {
+  const profile = {
+    username: "person",
+    id: "123",
+    is_private: false,
+    has_public_story: true,
+  };
+  const u = setup(
+    "<script>" +
+      JSON.stringify({
+        APP_ID: "123",
+        user: profile,
+        reel: {
+          id: "123",
+          user: profile,
+          items: [
+            {
+              id: "s",
+              media_type: 1,
+              image_versions2: {
+                candidates: [
+                  {
+                    url: "https://a.cdninstagram.com/story.jpg",
+                    width: 1080,
+                    height: 1920,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }) +
+      "</script>",
+  );
+  await dispatch(u, "stories:person", 777);
+  assert.equal(cloudMock.media.length, 1);
+  assert.ok(
+    !cloudMock.calls.some(
+      (c) => c.method === "editMessageText" && c.params.message_id === 777,
+    ),
+  );
+  const v = setup("<script>" + JSON.stringify({ user: profile }) + "</script>");
+  await dispatch(v, "stories:person", 888);
+  assert.ok(
+    !cloudMock.calls.some(
+      (c) => c.method === "editMessageText" && c.params.message_id === 888,
+    ),
+  );
 });

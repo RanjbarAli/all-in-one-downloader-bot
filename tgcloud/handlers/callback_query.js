@@ -14,9 +14,20 @@ export default async function (q) {
     (u) => dispatch(u, q.data || "", q.message.message_id),
     q.from,
     {
-      allowStateless: ["menu", "cancel", "help", "privacy", "stories"].includes(
-        (q.data || "").split(":")[0],
-      ),
+      allowStateless: [
+        "menu",
+        "cancel",
+        "help",
+        "privacy",
+        "stories",
+        "owner",
+        "admin",
+        "stats",
+        "settings",
+        "history",
+        "advanced",
+        "language",
+      ].includes((q.data || "").split(":")[0]),
     },
   );
 }

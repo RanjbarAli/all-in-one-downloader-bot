@@ -291,3 +291,121 @@ test("stories reject incomplete pages and video posters without real video files
     code: "incompleteCollection",
   });
 });
+
+test("public profile rejects 320px when the owner requires more than 500px", async () => {
+  const user = {
+    username: "person",
+    is_private: false,
+    profile_pic_url:
+      "https://a.cdninstagram.com/100.jpg?stp=dst-jpg_s100x100_tt6",
+    profile_pic_url_hd:
+      "https://a.cdninstagram.com/320.jpg?stp=dst-jpg_s320x320_tt6",
+  };
+  globalThis.networkMock = async (url) =>
+    url.startsWith("https://www.instagram.com/")
+      ? response(
+          url,
+          "text/html",
+          "<script>" + JSON.stringify({ user }) + "</script>",
+        )
+      : response(url, "image/jpeg", "data");
+  const r = await extract("https://www.instagram.com/person/");
+  assert.equal(r.formats.length, 0);
+  assert.equal(r.profile.photoWidth, undefined);
+});
+
+test("HTML story reels use target owner and web media resources, never timeline media or other users", async () => {
+  const user = {
+    username: "person",
+    id: "123",
+    is_private: false,
+    has_public_story: true,
+  };
+  const html =
+    "<script>" +
+    JSON.stringify({
+      user,
+      reels_media: [
+        { id: "999", owner: { username: "other" }, items: [{ id: "wrong" }] },
+        {
+          id: "123",
+          owner: user,
+          items: [
+            {
+              id: "a",
+              __typename: "GraphStoryImage",
+              display_resources: [
+                {
+                  src: "https://a.cdninstagram.com/320.jpg",
+                  config_width: 320,
+                  config_height: 560,
+                },
+                {
+                  src: "https://a.cdninstagram.com/1080.jpg",
+                  config_width: 1080,
+                  config_height: 1920,
+                },
+              ],
+            },
+            {
+              id: "b",
+              __typename: "GraphStoryVideo",
+              is_video: true,
+              video_resources: [
+                {
+                  src: "https://a.cdninstagram.com/web720.mp4",
+                  config_height: 720,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      timeline: {
+        user,
+        items: [
+          {
+            id: "timeline",
+            display_url: "https://a.cdninstagram.com/timeline.jpg",
+          },
+        ],
+      },
+    }) +
+    "</script>";
+  globalThis.networkMock = async (url) =>
+    url.startsWith("https://www.instagram.com/")
+      ? response(url, "text/html", html)
+      : response(url, url.includes("mp4") ? "video/mp4" : "image/jpeg", "data");
+  const r = await extractStories("person");
+  assert.equal(r.itemCount, 2);
+  assert.deepEqual(
+    r.formats.map((f) => f.url),
+    [
+      "https://a.cdninstagram.com/1080.jpg",
+      "https://a.cdninstagram.com/web720.mp4",
+    ],
+  );
+});
+
+test("profile accepts a real 640px native candidate above the strict 500px threshold", async () => {
+  const user = {
+    username: "person",
+    is_private: false,
+    profile_pic_url_hd:
+      "https://a.cdninstagram.com/320.jpg?stp=dst-jpg_s320x320_tt6",
+    hd_profile_pic_versions: [
+      { url: "https://a.cdninstagram.com/640.jpg", width: 640, height: 640 },
+    ],
+  };
+  globalThis.networkMock = async (url) =>
+    url.startsWith("https://www.instagram.com/")
+      ? response(
+          url,
+          "text/html",
+          "<script>" + JSON.stringify({ user }) + "</script>",
+        )
+      : response(url, "image/jpeg", "data");
+  const r = await extract("https://www.instagram.com/person/");
+  assert.equal(r.formats[0].width, 640);
+  assert.equal(r.profile.photoWidth, 640);
+});

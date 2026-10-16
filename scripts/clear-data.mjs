@@ -12,15 +12,8 @@ const file = new URL("../tgcloud/endpoints/purgeTestData.js", import.meta.url);
 await mkdir(new URL("../tgcloud/endpoints/", import.meta.url), {
   recursive: true,
 });
-const source = `import { db } from 'sdk';
-import { users, activity, locks } from '../schema.js';
-export default async function () {
- const removed = {};
- for (const [name, table] of [['activity',activity],['locks',locks],['users',users]]) {
-  removed[name] = (await db.delete(table).run()).rowsAffected;
- }
- return {cleared:true,removed};
-}`;
+const source = `import { clearBotData } from '../lib/operations.js';
+export default async function () { return {cleared:true,...await clearBotData()}; }`;
 let created = false;
 try {
   await writeFile(file, source, { flag: "wx" });

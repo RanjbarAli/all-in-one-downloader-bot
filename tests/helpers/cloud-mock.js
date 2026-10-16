@@ -34,6 +34,26 @@ export function mockCloud(html) {
   const attempts = [];
   const media = [];
   const db = {
+    async get() {
+      return { n: 1 };
+    },
+    delete(table) {
+      let condition;
+      const b = {
+        where(c) {
+          condition = c;
+          return b;
+        },
+        async run() {
+          const before = records[table.name].length;
+          records[table.name] = records[table.name].filter(
+            (row) => !matches(row, condition),
+          );
+          return { rowsAffected: before - records[table.name].length };
+        },
+      };
+      return b;
+    },
     async run() {
       return { rowsAffected: 1 };
     },

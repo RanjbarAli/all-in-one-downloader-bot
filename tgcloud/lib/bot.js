@@ -14,9 +14,18 @@ import {
   profileCaption,
 } from "./presentation.js";
 import { automaticSelection, allSelection, MAX_ITEMS } from "./selection.js";
+import {
+  controls,
+  controlChoices,
+  readControls,
+  assertDownloads,
+  byteLimit,
+  clearBotData,
+} from "./operations.js";
 import { extract, extractStories, request, bounded } from "./network.js";
 import {
   safeURL,
+  detect,
   profileURL,
   choose,
   filename,
@@ -94,22 +103,51 @@ async function screen(u, text, rows = [], mid) {
   }
   return api.sendMessage(p);
 }
+const ownerRows = (u) => [
+  [
+    button(tr(u, "settings"), "settings"),
+    button(tr(u, "history"), "history:0"),
+  ],
+  [
+    button(tr(u, "ownerPanel"), "owner:home"),
+    button(tr(u, "admin"), "admin:0"),
+  ],
+  [
+    button(tr(u, "serviceStatus"), "owner:status"),
+    button(tr(u, "stats"), "stats"),
+  ],
+  [button(tr(u, "quality"), "advanced"), button(tr(u, "language"), "language")],
+];
 export async function menu(u, mid) {
   if (u.volatile)
     return screen(
       u,
       tr(u, "volatileWelcome"),
-      [[button(tr(u, "help"), "help"), button(tr(u, "privacy"), "privacy")]],
+      [
+        ...(u.id === OWNER_ID ? ownerRows(u) : []),
+        [button(tr(u, "help"), "help"), button(tr(u, "privacy"), "privacy")],
+      ],
       mid,
     );
-  const rows = [
-    [
-      button(tr(u, "platforms"), "platforms"),
-      button(tr(u, "history"), "history:0"),
-    ],
-    [button(tr(u, "settings"), "settings"), button(tr(u, "help"), "help")],
-  ];
-  if (u.id === OWNER_ID) rows.push([button(tr(u, "admin"), "admin:0")]);
+  const rows =
+    u.id === OWNER_ID
+      ? [
+          [
+            button(tr(u, "platforms"), "platforms"),
+            button(tr(u, "help"), "help"),
+          ],
+          ...ownerRows(u),
+        ]
+      : [
+          [
+            button(tr(u, "platforms"), "platforms"),
+            button(tr(u, "history"), "history:0"),
+          ],
+          [
+            button(tr(u, "settings"), "settings"),
+            button(tr(u, "help"), "help"),
+          ],
+        ];
   return screen(u, tr(u, "welcome"), rows, mid);
 }
 async function settings(u, mid) {
@@ -162,7 +200,8 @@ async function advanced(u, mid) {
   );
 }
 export async function journal(u, source, platform, status, media = []) {
-  if (u.volatile || !u.prefs.history) return null;
+  if (u.volatile || !u.prefs.history || !controls(u.controls).recording)
+    return null;
   const [a] = await db
     .insert(activity)
     .values({
@@ -176,7 +215,7 @@ export async function journal(u, source, platform, status, media = []) {
     .returning()
     .run();
   await db.run(
-    sql`DELETE FROM activity WHERE user_id=${u.id} AND id NOT IN (SELECT id FROM activity WHERE user_id=${u.id} ORDER BY id DESC LIMIT 10000)`,
+    sql`DELETE FROM activity WHERE user_id=${u.id} AND id NOT IN (SELECT id FROM activity WHERE user_id=${u.id} ORDER BY id DESC LIMIT ${controls(u.controls).retention})`,
   );
   return a.id;
 }
@@ -260,7 +299,7 @@ async function formats(u, mid, page = 0) {
   const rows = s.formats.slice(page * 8, page * 8 + 8).map((f, localIndex) => {
     const i = page * 8 + localIndex;
     const label = `${i + 1}. ${tr(u, f.preview ? "previewPhoto" : f.kind)}${f.kind === "video" && f.height ? " " + f.height + "p" : ""} · ${f.size ? (f.size / 1048576).toFixed(1) + " MiB" : tr(u, "unknown")}`;
-    if (f.silent || f.segmented || f.size > u.prefs.limit * 1048576)
+    if (f.silent || f.segmented || f.size > byteLimit(u))
       return [{ text: label + " · " + tr(u, "unavailable"), url: s.source }];
     return [
       button(label, "get:" + s.time + ":" + i),
@@ -293,6 +332,11 @@ export async function processURL(u, input) {
   const source = input.startsWith("https://")
     ? safeURL(input).url
     : profileURL(u.state.platform, input);
+  assertDownloads(u, detect(source));
+  const story = source.match(
+    /^https:\/\/(?:www\.)?instagram\.com\/stories\/([a-zA-Z0-9_.]{1,30})\/(?:\d+\/?)?(?:\?[^#]*)?$/,
+  );
+  if (story) return sendStories(u, story[1]);
   const status = await screen(u, tr(u, "working"));
   let activityId;
   try {
@@ -313,7 +357,7 @@ export async function processURL(u, input) {
     }
     const automatic = automaticSelection(
       result.formats,
-      u.prefs.limit * 1048576,
+      byteLimit(u),
       u.prefs.quality,
     );
     if (u.volatile && !automatic && result.formats.every((f) => f.preview))
@@ -324,11 +368,7 @@ export async function processURL(u, input) {
         tr(u, "sending", {
           n:
             automatic?.length ||
-            allSelection(
-              result.formats,
-              u.prefs.limit * 1048576,
-              u.prefs.quality,
-            ).length,
+            allSelection(result.formats, byteLimit(u), u.prefs.quality).length,
         }),
         [],
         status.message_id,
@@ -355,6 +395,7 @@ function profileButtons(u, profile) {
 }
 async function sendStories(u, name) {
   if (!/^[a-zA-Z0-9_.]{1,30}$/.test(name)) throw new MediaError("invalid");
+  assertDownloads(u, "Instagram");
   const status = await screen(u, tr(u, "working"));
   try {
     const result = await extractStories(name);
@@ -399,7 +440,7 @@ async function upload(u, f, options = {}) {
       : {}),
   };
   if (f.segmented || f.silent) throw new MediaError("unsupported");
-  const limit = Math.min(MAX_BYTES, Number(u.prefs.limit) * 1048576);
+  const limit = Math.min(MAX_BYTES, byteLimit(u));
   let file = f.fileId;
   let type = f.type || f.kind;
   // Verified native JPEG-to-document URL delivery preserves the source bytes.
@@ -541,6 +582,7 @@ async function upload(u, f, options = {}) {
   };
 }
 async function deliver(u, key) {
+  assertDownloads(u, u.state.platform);
   if (!u.state.formats || Date.now() - u.state.time > 15 * 60000)
     throw new MediaError("expired");
   let progress;
@@ -551,23 +593,19 @@ async function deliver(u, key) {
   } else {
     let fs;
     if (key === "best") {
-      const f = choose(
-        u.state.formats,
-        u.prefs.limit * 1048576,
-        u.prefs.quality,
-      );
-      if (!f) throw new MediaError("noFormats");
-      fs = [f];
+      if (u.state.collection)
+        fs = allSelection(u.state.formats, byteLimit(u), u.prefs.quality);
+      else {
+        const f = choose(u.state.formats, byteLimit(u), u.prefs.quality);
+        if (!f) throw new MediaError("noFormats");
+        fs = [f];
+      }
     } else if (key === "selected") {
       fs = (u.state.selected || [])
         .map((i) => u.state.formats[i])
         .filter(Boolean);
     } else if (key === "all")
-      fs = allSelection(
-        u.state.formats,
-        u.prefs.limit * 1048576,
-        u.prefs.quality,
-      );
+      fs = allSelection(u.state.formats, byteLimit(u), u.prefs.quality);
     else {
       const i = Number(key);
       if (!Number.isSafeInteger(i) || !u.state.formats[i])
@@ -575,11 +613,14 @@ async function deliver(u, key) {
       fs = [u.state.formats[i]];
     }
     if (!fs.length) throw new MediaError("noFormats");
-    if (fs.length > MAX_ITEMS) throw new MediaError("collectionLimit");
+    if (fs.length > controls(u.controls).bulk)
+      throw new MediaError("bulkLimit");
     progress = { indices: fs.map((f) => u.state.formats.indexOf(f)), next: 0 };
     u.state.delivery = progress;
     await save(u);
   }
+  if (progress.indices.length > controls(u.controls).bulk)
+    throw new MediaError("bulkLimit");
   const started = Date.now();
   while (progress.next < progress.indices.length) {
     const f = u.state.formats[progress.indices[progress.next]];
@@ -799,14 +840,155 @@ async function entry(u, id, admin, snapshot) {
         : {}),
     });
 }
+async function ownerPanel(u, action = "home", value, mid) {
+  if (u.id !== OWNER_ID) throw new MediaError("denied");
+  if (action === "status") {
+    let storage = "on";
+    try {
+      await db.get(sql`SELECT 1 AS n`);
+    } catch {
+      storage = "off";
+    }
+    const c = controls(u.controls);
+    return screen(
+      u,
+      tr(u, "serviceStatus") +
+        "\n" +
+        tr(u, "storage") +
+        ": " +
+        tr(u, storage) +
+        "\n" +
+        tr(u, "globalSize") +
+        ": " +
+        c.maxMiB +
+        " MiB\n" +
+        tr(u, "bulkSize") +
+        ": " +
+        c.bulk +
+        "\n" +
+        tr(u, "profileFloor") +
+        "\n" +
+        tr(u, "storyAccess"),
+      [
+        [button(tr(u, "refresh"), "owner:status")],
+        [button(tr(u, "ownerPanel"), "owner:home")],
+        nav(u),
+      ],
+      mid,
+    );
+  }
+  if (u.volatile)
+    return screen(
+      u,
+      tr(u, "ownerPanel") + "\n" + tr(u, "storageUnavailable"),
+      [[button(tr(u, "serviceStatus"), "owner:status")], nav(u)],
+      mid,
+    );
+  const c = controls(u.controls || u.prefs._controls);
+  if (action === "purge")
+    return screen(
+      u,
+      tr(u, "purgeWarning"),
+      [
+        [button(tr(u, "purgeConfirm"), "owner:purge_yes")],
+        [button(tr(u, "back"), "owner:home")],
+      ],
+      mid,
+    );
+  if (action === "purge_yes") {
+    await clearBotData();
+    u.state = {};
+    u.prefs = { ...defaults };
+    u.controls = controls();
+    u.lang = "en";
+    // No save here: a reset must leave every table empty.
+    return screen(u, tr(u, "dataCleared"), [nav(u)], mid);
+  }
+  if (action === "source") {
+    if (!PLATFORMS.includes(value)) throw new MediaError("invalid");
+    c.disabled = c.disabled.includes(value)
+      ? c.disabled.filter((p) => p !== value)
+      : [...c.disabled, value];
+  } else if (controlChoices[action]) {
+    const choices = controlChoices[action];
+    c[action] = choices[(choices.indexOf(c[action]) + 1) % choices.length];
+  } else if (!["home", "sources"].includes(action))
+    throw new MediaError("invalid");
+  if (action !== "home" && action !== "sources") {
+    u.controls = c;
+    u.prefs._controls = c;
+    await save(u);
+  }
+  if (action === "sources" || action === "source")
+    return screen(
+      u,
+      tr(u, "sourcesControl"),
+      [
+        ...PLATFORMS.map((p) => [
+          button(
+            (c.disabled.includes(p) ? "○ " : "✓ ") + p,
+            "owner:source:" + p,
+          ),
+        ]),
+        [button(tr(u, "back"), "owner:home")],
+      ],
+      mid,
+    );
+  const row = (key, label, display) => [
+    button(tr(u, label) + ": " + display, "owner:" + key),
+  ];
+  return screen(
+    u,
+    tr(u, "ownerPanel"),
+    [
+      [button(tr(u, "admin"), "admin:0"), button(tr(u, "stats"), "stats")],
+      row("enabled", "publicDownloads", tr(u, c.enabled ? "on" : "off")),
+      row("maxMiB", "globalSize", c.maxMiB + " MiB"),
+      row("bulk", "bulkSize", String(c.bulk)),
+      row("interval", "requestInterval", c.interval + " s"),
+      row("retention", "retention", String(c.retention)),
+      row("recording", "globalHistory", tr(u, c.recording ? "on" : "off")),
+      [button(tr(u, "sourcesControl"), "owner:sources")],
+      [
+        button(tr(u, "settings"), "settings"),
+        button(tr(u, "serviceStatus"), "owner:status"),
+      ],
+      [button(tr(u, "purgeData"), "owner:purge")],
+      nav(u),
+    ],
+    mid,
+  );
+}
 export async function dispatch(u, data, mid) {
   const [action, arg, extra] = data.split(":");
   if (
     u.volatile &&
-    !["menu", "cancel", "help", "privacy", "back", "stories"].includes(action)
+    ![
+      "menu",
+      "cancel",
+      "help",
+      "privacy",
+      "back",
+      "stories",
+      "owner",
+      "admin",
+      "stats",
+      "settings",
+      "history",
+      "advanced",
+      "language",
+    ].includes(action)
   )
     return screen(u, tr(u, "serviceUnavailable"), [nav(u)], mid);
-  if (action === "stories") return sendStories(u, arg, mid);
+  if (action === "owner") return ownerPanel(u, arg, extra, mid);
+  if (
+    u.volatile &&
+    ["admin", "stats", "settings", "history", "advanced", "language"].includes(
+      action,
+    )
+  )
+    return ownerPanel(u, "home", undefined, mid);
+  if (action === "stories") return sendStories(u, arg);
   if (action === "back") return dispatch(u, arg || "menu", mid);
   if (action === "menu" || action === "cancel") {
     u.state = {};
@@ -817,7 +999,12 @@ export async function dispatch(u, data, mid) {
     return screen(
       u,
       tr(u, "select"),
-      [...PLATFORMS.map((p) => [button(p, "platform:" + p)]), nav(u)],
+      [
+        ...PLATFORMS.filter(
+          (p) => !controls(u.controls).disabled.includes(p),
+        ).map((p) => [button(p, "platform:" + p)]),
+        nav(u),
+      ],
       mid,
     );
   if (action === "platform") {
@@ -862,7 +1049,10 @@ export async function dispatch(u, data, mid) {
     return arg === "mode" ? settings(u, mid) : advanced(u, mid);
   }
   if (action === "reset") {
-    u.prefs = { ...defaults };
+    u.prefs = {
+      ...defaults,
+      ...(u.prefs._controls ? { _controls: u.prefs._controls } : {}),
+    };
     await save(u);
     return settings(u, mid);
   }
@@ -960,9 +1150,15 @@ export async function dispatch(u, data, mid) {
     )
       throw new MediaError("expired");
     const selected = u.state.selected || [];
+    const item = u.state.formats[i].itemId;
     u.state.selected = selected.includes(i)
       ? selected.filter((x) => x !== i)
-      : [...selected, i].slice(-MAX_ITEMS);
+      : [
+          ...selected.filter(
+            (x) => item === undefined || u.state.formats[x]?.itemId !== item,
+          ),
+          i,
+        ].slice(-MAX_ITEMS);
     await save(u);
     return formats(u, mid, Math.floor(i / 8));
   }
@@ -996,10 +1192,17 @@ export async function guarded(id, work, identity, options = {}) {
     const result = await db.run(
       sql`INSERT INTO locks (id,until) VALUES (${id},${now + 120000}) ON CONFLICT(id) DO UPDATE SET until=${now + 120000} WHERE locks.until<${now}`,
     );
-    if (!result.rowsAffected) return;
+    if (!result.rowsAffected) {
+      await api.sendMessage({ chat_id: id, text: t("en", "busy") });
+      return;
+    }
     held = true;
     const u = await user(id, identity);
-    if (now - u.last < 1500) return;
+    u.controls = await readControls(u);
+    if (now - u.last < u.controls.interval * 1000) {
+      await screen(u, tr(u, "rate"), [nav(u)]);
+      return;
+    }
     await db.update(users).set({ last: now }).where(eq(users.id, id)).run();
     try {
       startedWork = true;
@@ -1016,6 +1219,7 @@ export async function guarded(id, work, identity, options = {}) {
         username: username(identity?.username),
         lang: "en",
         prefs: { ...defaults, history: false },
+        controls: controls(),
         state: {},
         volatile: true,
       };
