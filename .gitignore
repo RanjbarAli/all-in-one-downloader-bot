@@ -1,2 +1,28 @@
+# Telegram CLI authentication and machine state
 .tgcloud/
 node_modules/
+
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.session
+*.session-journal
+cookies*.txt
+credentials*.json
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.log
+coverage/
+.DS_Store
+*.zip
+
+# Maintenance modules are created locally by scripts, never published/deployed
+tgcloud/endpoints/configure.js
+tgcloud/endpoints/purgeTestData.js

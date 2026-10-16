@@ -7,7 +7,7 @@ and true. For the full SDK reference (db, Bot API, fetch), see
 
 ## What this project is
 
-A **Telegram Mini App bot** running on Telegram's serverless platform. You write
+A **Telegram media downloader bot** running on Telegram's serverless platform. You write
 JavaScript modules (database schema, shared library code, update handlers); the
 platform runs them in a V8 isolate. The `tgcloud` CLI syncs this local project
 with the bot's cloud environment — think `wrangler`/`vercel` + `drizzle-kit`.
@@ -15,6 +15,13 @@ with the bot's cloud environment — think `wrangler`/`vercel` + `drizzle-kit`.
 There is no server to run locally and no `node_modules` to import from at runtime:
 the only things available inside a module are the platform SDK and other modules
 in this project.
+
+## Project verification
+
+Read `docs/VERIFICATION.md` before making platform-support claims. Run `npm test`
+and `npm run check`. Do not deploy temporary CLI verification endpoints. Owner
+identity is configured numerically in `tgcloud/lib/config.js`. No external backend
+or runtime package dependency is allowed.
 
 ## Layout
 

@@ -1,0 +1,17 @@
+{
+  "image": "grand-downloader-profile.png",
+  "generator": "Built-in imagegen",
+  "prompt": "Use case: logo-brand. Create a finished square Telegram bot profile avatar for Grand Downloader, a public media downloader. A single bold, carefully drawn download arrow formed from a folded ribbon, subtly suggesting the letter G with a rounded open container underneath. Centered large iconic silhouette, legible at 40 pixels, all essential artwork inside the center 70% so Telegram circular cropping works. Deep midnight navy background, vivid cool cyan mark with restrained white highlights, subtle dimensional material and refined studio light, crisp polished edges, very minimal sophisticated app identity. No text, no letters printed, no tagline, no watermark, no Telegram logo, no platform logos, no decorative floating objects, no mockup or phone frame. Square 1024 by 1024 composition, solid opaque background.",
+  "en": {
+    "short_description": "Public media, made simple. English • فارسی • العربية",
+    "description": "Send a public media link, choose an available quality, and receive the file in Telegram.\n\n• Photos, videos and audio from accessible sources\n• English, فارسی and العربية\n• Download history and personal settings\n\nAvailability varies by source. The owner can review saved activity. See /help and /privacy."
+  },
+  "fa": {
+    "short_description": "دریافت آسان مدیای عمومی • فارسی، انگلیسی و عربی",
+    "description": "لینک مدیای عمومی را بفرستید، از کیفیت‌های موجود انتخاب کنید و فایل را در تلگرام بگیرید.\n\n• عکس، ویدئو و صدا از منابع قابل دسترس\n• فارسی، انگلیسی و عربی\n• تاریخچهٔ دانلود و تنظیمات شخصی\n\nدسترسی به مدیا به منبع بستگی دارد. مالک می‌تواند فعالیت ذخیره‌شده را ببیند. راهنما: /help و /privacy"
+  },
+  "ar": {
+    "short_description": "تنزيل الوسائط العامة بسهولة • العربية والفارسية والإنجليزية",
+    "description": "أرسل رابط وسائط عاماً، واختر جودة متاحة، واستلم الملف في تيليجرام.\n\n• صور وفيديو وصوت من المصادر المتاحة\n• العربية والفارسية والإنجليزية\n• سجل تنزيلات وإعدادات شخصية\n\nيعتمد توفر الوسائط على المصدر. يمكن للمالك مراجعة النشاط المحفوظ. للمساعدة: /help و /privacy"
+  }
+}

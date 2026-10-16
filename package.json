@@ -1,17 +1,23 @@
 {
   "name": "granddl_bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Native Telegram Serverless media downloader",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "tgcloud push"
+    "test": "node --test",
+    "deploy": "tgcloud push",
+    "configure": "node scripts/configure.mjs",
+    "check": "prettier --check \"tgcloud/**/*.js\" \"tests/**/*.js\" \"scripts/*.mjs\"",
+    "migrate": "tgcloud migrate --safe",
+    "data:clear": "node scripts/clear-data.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
-    "@tgcloud/cli": "^0.2.0"
-  }
+    "@tgcloud/cli": "^0.2.0",
+    "prettier": "^3.6.2"
+  },
+  "private": true
 }
